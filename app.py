@@ -108,6 +108,16 @@ def create_app(
     def health():
         return {"status": "ok", "service": "education-scheduling-agent"}
 
+    @app.get("/ready", tags=["系统"])
+    def ready():
+        coordinator = app.state.coordinator
+        runtime = app.state.llm_runtime
+        if coordinator is None or runtime is None or not coordinator.consultant.ready:
+            from fastapi import HTTPException
+
+            raise HTTPException(503, "Agent 尚未就绪")
+        return {"status": "ready", "agent_mode": "llm", "model": runtime.model_name}
+
     return app
 
 

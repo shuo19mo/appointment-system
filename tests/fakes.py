@@ -42,6 +42,7 @@ class FakeLLMRuntime:
         tool_results: list[Any] | None = None,
         tool_answer: str = "",
         tool_plan: list[tuple[str, dict[str, Any]]] | None = None,
+        error: Exception | None = None,
     ):
         self._structured = defaultdict(deque)
         for schema_name, values in (structured or {}).items():
@@ -50,21 +51,28 @@ class FakeLLMRuntime:
         self._tool_results = deque(tool_results or [])
         self._tool_answer = tool_answer
         self._tool_plan = tool_plan or []
+        self._error = error
         self.structured_calls: list[dict[str, Any]] = []
         self.text_calls: list[dict[str, Any]] = []
         self.tool_calls: list[dict[str, Any]] = []
 
     def structured(self, *, system: str, user: str, schema):
+        if self._error:
+            raise self._error
         self.structured_calls.append({"system": system, "user": user, "schema": schema.__name__})
         values = self._structured[schema.__name__]
         payload = values.popleft() if values else {}
         return schema.model_validate(payload)
 
     def text(self, *, system: str, user: str) -> str:
+        if self._error:
+            raise self._error
         self.text_calls.append({"system": system, "user": user})
         return self._texts.popleft() if self._texts else ""
 
     def tool_loop(self, *, system: str, user: str, tools: list[Any], max_steps: int = 4):
+        if self._error:
+            raise self._error
         self.tool_calls.append(
             {"system": system, "user": user, "tools": [tool.name for tool in tools], "max_steps": max_steps}
         )

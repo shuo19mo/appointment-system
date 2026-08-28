@@ -14,4 +14,6 @@ router = APIRouter(tags=["Web"])
 @router.get("/courses", response_class=HTMLResponse)
 @router.get("/schedules", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    return templates.TemplateResponse(request, "index.html")
+    runtime = request.app.state.llm_runtime
+    model_name = getattr(runtime, "model_name", "deepseek-v4-flash")
+    return templates.TemplateResponse(request, "index.html", {"model_name": model_name})

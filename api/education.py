@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
+from agents.llm.runtime import LLMUnavailableError
 from services.scheduling_service import ScheduleConflictError, SchedulingService, SchedulingValidationError
 
 
@@ -366,8 +367,11 @@ def search_knowledge(request: Request, q: str, category: str | None = None, limi
 @router.post("/chat")
 def chat(payload: ChatRequest, request: Request):
     session_id = payload.session_id or str(uuid4())
+    request_id = str(uuid4())
     try:
         result = request.app.state.coordinator.process(session_id, payload.message)
+    except LLMUnavailableError as exc:
+        raise HTTPException(503, "DeepSeek 服务暂时不可用") from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    return {"session_id": session_id, **result}
+    return {"session_id": session_id, "request_id": request_id, **result}

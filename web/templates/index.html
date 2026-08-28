@@ -13,7 +13,7 @@
       <p class="eyebrow">MULTI-CAMPUS EDUCATION OPERATIONS</p>
       <h1>让每一次排课，都匹配到合适的老师</h1>
       <p>面向多校区补习机构的智能排课助手。统一教师资质、校区、档期和学生需求，自动排除冲突并给出可解释的匹配结果。</p>
-      <div class="hero-actions"><a class="primary" href="#assistant">开始排课</a><span>规则引擎离线可用 · AI 可选增强</span></div>
+      <div class="hero-actions"><a class="primary" href="#assistant">开始排课</a><span class="model-badge">DeepSeek LLM Agent · {{ model_name }}</span></div>
     </div>
   </header>
 
@@ -27,8 +27,8 @@
 
     <section id="assistant" class="assistant-grid">
       <div>
-        <p class="eyebrow dark">SCHEDULING COPILOT</p>
-        <h2>自然语言收集需求，确定性规则负责排课</h2>
+        <p class="eyebrow dark">DEEPSEEK AGENT</p>
+        <h2>LLM 理解需求，确定性服务安全排课</h2>
         <p>试试输入：“给小明在浦东校区约初二数学，2026-09-05 14:00，90分钟，最好王老师”。</p>
         <ul><li>教师课程资质与校区双重校验</li><li>教师、学生两侧冲突检测</li><li>指定教师无档期时返回替代人选</li></ul>
       </div>
@@ -38,7 +38,8 @@
       </div>
     </section>
 
-    <section id="management" class="data-section">
+    <details id="management" class="data-section admin-panel">
+      <summary><span>教务后台</span><small>校区、教师、课程、学生与档期维护</small></summary>
       <div class="section-title"><div><p class="eyebrow dark">OPERATIONS</p><h2>教务资料维护</h2></div><p id="admin-status">填写 ID 可更新，不填则新增；停用可在下方卡片操作。</p></div>
       <div class="admin-grid">
         <form class="admin-form" data-resource="campuses"><h3>校区</h3><input name="id" type="number" placeholder="ID（更新时填写）"><input name="name" placeholder="校区名称"><input name="address" placeholder="地址"><button>保存校区</button></form>
@@ -47,7 +48,7 @@
         <form class="admin-form" data-resource="students"><h3>学生</h3><input name="id" type="number" placeholder="ID（更新时填写）"><input name="name" placeholder="学生姓名"><input name="grade" placeholder="年级"><input name="contact" placeholder="联系方式"><button>保存学生</button></form>
         <form id="teacher-rules-form" class="admin-form wide"><h3>教师资格、校区与档期</h3><input name="teacher_id" type="number" required placeholder="教师 ID"><input name="course_id" type="number" placeholder="授课课程 ID"><input name="campus_id" type="number" placeholder="服务校区 ID"><label>可用开始<input name="start_at" type="datetime-local"></label><label>可用结束<input name="end_at" type="datetime-local"></label><button>保存关联与档期</button></form>
       </div>
-    </section>
+    </details>
 
     <section id="teachers" class="data-section"><div class="section-title"><p class="eyebrow dark">TEACHERS</p><h2>教师资源</h2></div><div id="teacher-list" class="cards"></div></section>
     <section id="courses" class="data-section"><div class="section-title"><p class="eyebrow dark">COURSES</p><h2>课程产品</h2></div><div id="course-list" class="cards"></div></section>
