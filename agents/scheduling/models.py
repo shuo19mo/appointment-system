@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +8,8 @@ FIELD_LABELS = {"student": "学生姓名", "campus": "校区", "subject": "学�
 
 
 class SchedulingRequestData(BaseModel):
+    action: Literal["schedule", "confirm", "cancel"] = Field(default="schedule", exclude=True)
+    booking_id: int | None = Field(default=None, exclude=True)
     student_name: str | None = None
     campus_name: str | None = None
     subject: str | None = None

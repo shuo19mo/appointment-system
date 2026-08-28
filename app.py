@@ -70,7 +70,12 @@ def create_app(
         if application.state.llm_runtime is None:
             application.state.llm_runtime = create_deepseek_runtime(AgentSettings.from_env())
         if application.state.coordinator is None:
-            application.state.coordinator = EducationCoordinator(repository, application.state.session_store)
+            application.state.coordinator = EducationCoordinator(
+                repository,
+                application.state.session_store,
+                llm_runtime=application.state.llm_runtime,
+                embedding_provider=application.state.embedding_provider,
+            )
         yield
 
     app = FastAPI(title="多校区智能排课 AI Agent", description="补习机构教师匹配、排课与课程咨询服务", version="2.0.0", lifespan=lifespan)
@@ -81,7 +86,16 @@ def create_app(
     app.state.session_store = session_store
     app.state.llm_runtime = llm_runtime
     app.state.embedding_provider = embedding_provider
-    app.state.coordinator = EducationCoordinator(repository, session_store) if llm_runtime is not None else None
+    app.state.coordinator = (
+        EducationCoordinator(
+            repository,
+            session_store,
+            llm_runtime=llm_runtime,
+            embedding_provider=embedding_provider,
+        )
+        if llm_runtime is not None
+        else None
+    )
     for router in api_routers:
         app.include_router(router)
     app.include_router(web_router)

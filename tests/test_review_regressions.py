@@ -13,6 +13,7 @@ import pytest
 from app import create_app
 from db.db_router import DatabaseRouter
 from db.repositories.education_repository import RepositoryConflict
+from tests.fakes import FakeEmbeddingProvider, FakeLLMRuntime
 
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -135,7 +136,20 @@ def test_management_crud_relationships_and_knowledge_contract(repository):
 
 
 def test_invalid_chat_time_returns_422(repository, seeded):
-    client = TestClient(create_app(repository=repository, initialize_demo=False))
+    runtime = FakeLLMRuntime(
+        structured={
+            "TaskRoute": [{"category": "scheduling"}],
+            "SchedulingExtraction": [{"action": "schedule", "start_at": "2026-02-30T14:00:00+08:00"}],
+        }
+    )
+    client = TestClient(
+        create_app(
+            repository=repository,
+            initialize_demo=False,
+            llm_runtime=runtime,
+            embedding_provider=FakeEmbeddingProvider(),
+        )
+    )
     response = client.post(
         "/api/chat",
         json={"session_id": "bad-time", "message": "给小明在浦东校区约初二数学，2026-02-30 14:00，90分钟"},
