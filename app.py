@@ -1,6 +1,7 @@
 """FastAPI entry point for the multi-campus education scheduling agent."""
 
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -11,9 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from agents.coordinator import EducationCoordinator
+from agents.llm.runtime import create_deepseek_runtime
 from agents.session_store import SessionStore
 from api import api_routers
 from db.db_router import DatabaseRouter
+from config.agent import AgentSettings
 from web import router as web_router
 
 
@@ -47,7 +50,10 @@ def seed_demo_data(repository) -> None:
     repository.add_knowledge("初二数学提升课覆盖代数、几何和校内同步复习，默认每次 90 分钟。", "course", ["初二", "数学", "课程"])
 
 
-def create_app(*, repository=None, initialize_demo: bool = False, initialize_schema: bool = False) -> FastAPI:
+def create_app(
+    *, repository=None, initialize_demo: bool = False, initialize_schema: bool = False,
+    llm_runtime=None, embedding_provider=None,
+) -> FastAPI:
     database_router = None
     if repository is None:
         database_router = DatabaseRouter(
@@ -59,12 +65,23 @@ def create_app(*, repository=None, initialize_demo: bool = False, initialize_sch
     if initialize_demo:
         seed_demo_data(repository)
 
-    app = FastAPI(title="多校区智能排课 AI Agent", description="补习机构教师匹配、排课与课程咨询服务", version="2.0.0")
+    @asynccontextmanager
+    async def lifespan(application: FastAPI):
+        if application.state.llm_runtime is None:
+            application.state.llm_runtime = create_deepseek_runtime(AgentSettings.from_env())
+        if application.state.coordinator is None:
+            application.state.coordinator = EducationCoordinator(repository, application.state.session_store)
+        yield
+
+    app = FastAPI(title="多校区智能排课 AI Agent", description="补习机构教师匹配、排课与课程咨询服务", version="2.0.0", lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
     app.state.repository = repository
     app.state.database_router = database_router
     session_store = SessionStore(ttl_seconds=int(os.getenv("SESSION_TTL_SECONDS", "1800")))
-    app.state.coordinator = EducationCoordinator(repository, session_store)
+    app.state.session_store = session_store
+    app.state.llm_runtime = llm_runtime
+    app.state.embedding_provider = embedding_provider
+    app.state.coordinator = EducationCoordinator(repository, session_store) if llm_runtime is not None else None
     for router in api_routers:
         app.include_router(router)
     app.include_router(web_router)
