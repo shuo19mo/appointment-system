@@ -1,6 +1,7 @@
 """Top-level DeepSeek education Agent coordinator."""
 
 from agents.consultant_agent import ConsultantAgent
+from agents.education_tools import EducationTools
 from agents.llm.runtime import LLMRuntime
 from agents.scheduling_agent import SchedulingAgent
 from agents.session_store import SessionStore
@@ -11,13 +12,14 @@ class EducationCoordinator:
     def __init__(self, repository, session_store: SessionStore | None = None, *, llm_runtime: LLMRuntime, embedding_provider=None):
         self.sessions = session_store or SessionStore()
         self.runtime = llm_runtime
+        self.tools = EducationTools(repository)
         self.classifier = TaskClassificationAgent(llm_runtime)
         self.scheduling = SchedulingAgent(repository, self.sessions, llm_runtime)
         self.consultant = ConsultantAgent(repository)
 
     @property
     def available_tool_names(self) -> list[str]:
-        return []
+        return [tool.name for tool in self.tools.registry()]
 
     def process(self, session_id: str, message: str) -> dict:
         category = self.classifier.classify(message, self.sessions.get(session_id))
