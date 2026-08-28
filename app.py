@@ -2,9 +2,7 @@
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,37 +16,12 @@ from api import api_routers
 from db.db_router import DatabaseRouter
 from config.agent import AgentSettings
 from config.model_provider import create_local_embedding_provider
+from db.demo_data import seed_demo_data
 from web import router as web_router
 
 
 ROOT = Path(__file__).resolve().parent
-SHANGHAI = ZoneInfo("Asia/Shanghai")
 load_dotenv(ROOT / ".env")
-
-
-def seed_demo_data(repository) -> None:
-    if repository.list_campuses():
-        return
-    pudong = repository.create_campus("浦东校区", "上海市浦东新区张江路 88 号")
-    xuhui = repository.create_campus("徐汇校区", "上海市徐汇区漕溪北路 120 号")
-    math = repository.create_course("初二数学提升", "数学", "初二", 90, "代数、几何与校内同步提升")
-    english = repository.create_course("高一英语强化", "英语", "高一", 90, "阅读、语法与写作综合训练")
-    student = repository.create_student("小明", "初二", "13800000000")
-    wang = repository.create_teacher("王老师", "八年初中数学教学经验", "初中数学、几何")
-    li = repository.create_teacher("李老师", "擅长分层教学与学习规划", "初中数学、高中英语")
-    zhang = repository.create_teacher("张老师", "高中英语教研教师", "高中英语、写作")
-    for teacher, courses, campuses in ((wang, (math,), (pudong,)), (li, (math, english), (pudong, xuhui)), (zhang, (english,), (xuhui,))):
-        for course in courses:
-            repository.qualify_teacher(teacher.id, course.id)
-        for campus in campuses:
-            repository.assign_teacher_to_campus(teacher.id, campus.id)
-        today = datetime.now(SHANGHAI).replace(hour=9, minute=0, second=0, microsecond=0)
-        for day in range(30):
-            start = today + timedelta(days=day)
-            repository.add_teacher_availability(teacher.id, start, start.replace(hour=21))
-    repository.add_knowledge("浦东校区位于张江路 88 号，提供初中数学一对一课程。", "campus", ["浦东校区", "地址"])
-    repository.add_knowledge("课程开始前 24 小时可免费取消或改期；不足 24 小时请联系教务协调。", "policy", ["取消", "改期", "政策"])
-    repository.add_knowledge("初二数学提升课覆盖代数、几何和校内同步复习，默认每次 90 分钟。", "course", ["初二", "数学", "课程"])
 
 
 def create_app(

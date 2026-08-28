@@ -130,6 +130,8 @@ python -m compileall -q agents api config db services web app.py
 
 教育排课模型与旧按摩/到店预约模型没有可靠的一一映射，本仓库使用独立 `education_scheduling.db` 和 clean-slate 初始化。开发环境可设置 `AUTO_INIT_DB=true`、`SEED_DEMO_DATA=true`；生产环境应关闭并使用受控迁移。详见 [docs/migrations/v2-clean-slate.md](docs/migrations/v2-clean-slate.md)。
 
+空数据库首次启动时会生成一套固定、可复现的运营演示数据：5 个校区、15 位教师、10 个课程产品、18 位学生、12 条近期课程安排和 12 条知识资料。数据包含指定教师冲突、替代教师、跨校区资质、学生时间冲突、教师每日课时上限以及 `confirmed`、`pending`、`cancelled` 状态，可直接用于页面、排课 API、RAG 和 Agent 联调。已有数据库不会被 seed 自动覆盖。
+
 ## 目录
 
 ```text
