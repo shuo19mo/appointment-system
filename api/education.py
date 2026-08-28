@@ -356,8 +356,11 @@ def list_knowledge(request: Request, category: str | None = None, limit: int = 1
 
 @router.get("/knowledge/search")
 def search_knowledge(request: Request, q: str, category: str | None = None, limit: int = 5):
-    results = _repository(request).search_knowledge(q, category, limit)
-    return {"results": [{"id": item.id, "content": item.content, "category": item.category, "keywords": item.keywords} for item in results]}
+    coordinator = request.app.state.coordinator
+    if coordinator is None:
+        raise HTTPException(503, "Agent 尚未就绪")
+    results = coordinator.consultant.knowledge.search(q, top_k=limit, category=category)
+    return {"results": [{"id": item.id, "content": item.content, "category": item.category, "score": item.score} for item in results]}
 
 
 @router.post("/chat")

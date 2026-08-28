@@ -26,6 +26,12 @@ class MatchTeachersArgs(BaseModel):
     preferred_teacher_id: int | None = None
 
 
+class SearchKnowledgeArgs(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=3, ge=1, le=10)
+    category: str | None = None
+
+
 class EducationTools:
     def __init__(self, repository):
         self.repository = repository

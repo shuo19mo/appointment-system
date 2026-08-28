@@ -4,10 +4,18 @@ from zoneinfo import ZoneInfo
 from fastapi.testclient import TestClient
 
 from app import create_app
+from tests.fakes import FakeEmbeddingProvider, FakeLLMRuntime
 
 
 def test_health_and_education_homepage(repository, seeded):
-    client = TestClient(create_app(repository=repository, initialize_demo=False))
+    client = TestClient(
+        create_app(
+            repository=repository,
+            initialize_demo=False,
+            llm_runtime=FakeLLMRuntime(),
+            embedding_provider=FakeEmbeddingProvider(),
+        )
+    )
 
     health = client.get("/health")
     assert health.status_code == 200
@@ -20,7 +28,14 @@ def test_health_and_education_homepage(repository, seeded):
 
 
 def test_match_and_create_schedule_api(repository, seeded):
-    client = TestClient(create_app(repository=repository, initialize_demo=False))
+    client = TestClient(
+        create_app(
+            repository=repository,
+            initialize_demo=False,
+            llm_runtime=FakeLLMRuntime(),
+            embedding_provider=FakeEmbeddingProvider(),
+        )
+    )
     start = datetime(2026, 9, 5, 14, 0, tzinfo=ZoneInfo("Asia/Shanghai")).isoformat()
     payload = {
         "student_id": seeded["student"].id,
@@ -56,7 +71,14 @@ def test_knowledge_search_uses_education_content(repository, seeded):
         category="policy",
         keywords=["取消", "浦东校区"],
     )
-    client = TestClient(create_app(repository=repository, initialize_demo=False))
+    client = TestClient(
+        create_app(
+            repository=repository,
+            initialize_demo=False,
+            llm_runtime=FakeLLMRuntime(),
+            embedding_provider=FakeEmbeddingProvider(),
+        )
+    )
 
     response = client.get("/api/knowledge/search", params={"q": "浦东校区怎么取消课程"})
 

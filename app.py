@@ -17,6 +17,7 @@ from agents.session_store import SessionStore
 from api import api_routers
 from db.db_router import DatabaseRouter
 from config.agent import AgentSettings
+from config.model_provider import create_local_embedding_provider
 from web import router as web_router
 
 
@@ -69,6 +70,8 @@ def create_app(
     async def lifespan(application: FastAPI):
         if application.state.llm_runtime is None:
             application.state.llm_runtime = create_deepseek_runtime(AgentSettings.from_env())
+        if application.state.embedding_provider is None:
+            application.state.embedding_provider = create_local_embedding_provider()
         if application.state.coordinator is None:
             application.state.coordinator = EducationCoordinator(
                 repository,

@@ -21,6 +21,16 @@ def create_deepseek_chat_model(settings: AgentSettings, *, temperature: float = 
 
 
 def create_local_embedding_provider(model_name: str = "BAAI/bge-small-zh-v1.5"):
-    from langchain_huggingface import HuggingFaceEmbeddings
+    from sentence_transformers import SentenceTransformer
 
-    return HuggingFaceEmbeddings(model_name=model_name)
+    class SentenceTransformerEmbeddingProvider:
+        def __init__(self):
+            self.model = SentenceTransformer(model_name)
+
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return self.model.encode(texts).tolist()
+
+        def embed_query(self, text: str) -> list[float]:
+            return self.model.encode([text])[0].tolist()
+
+    return SentenceTransformerEmbeddingProvider()

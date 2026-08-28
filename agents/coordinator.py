@@ -15,7 +15,7 @@ class EducationCoordinator:
         self.tools = EducationTools(repository)
         self.classifier = TaskClassificationAgent(llm_runtime)
         self.scheduling = SchedulingAgent(repository, self.sessions, llm_runtime)
-        self.consultant = ConsultantAgent(repository)
+        self.consultant = ConsultantAgent(repository, llm_runtime, embedding_provider)
 
     @property
     def available_tool_names(self) -> list[str]:

@@ -17,8 +17,17 @@ class FakeEmbeddingProvider:
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * self.dimensions
+        concepts = (
+            (0, ("取消", "退课", "临时有事")),
+            (1, ("地址", "校区", "哪里", "张江路")),
+            (2, ("教师", "老师", "师资")),
+            (3, ("课程", "学科", "数学", "英语")),
+        )
+        for dimension, terms in concepts:
+            if any(term in text for term in terms):
+                vector[dimension] += 5.0
         for index, character in enumerate(text):
-            vector[index % self.dimensions] += (ord(character) % 97) / 97
+            vector[index % self.dimensions] += (ord(character) % 17) / 170
         return vector
 
 
@@ -31,12 +40,16 @@ class FakeLLMRuntime:
         structured: dict[str, list[dict[str, Any]]] | None = None,
         texts: list[str] | None = None,
         tool_results: list[Any] | None = None,
+        tool_answer: str = "",
+        tool_plan: list[tuple[str, dict[str, Any]]] | None = None,
     ):
         self._structured = defaultdict(deque)
         for schema_name, values in (structured or {}).items():
             self._structured[schema_name].extend(values)
         self._texts = deque(texts or [])
         self._tool_results = deque(tool_results or [])
+        self._tool_answer = tool_answer
+        self._tool_plan = tool_plan or []
         self.structured_calls: list[dict[str, Any]] = []
         self.text_calls: list[dict[str, Any]] = []
         self.tool_calls: list[dict[str, Any]] = []
@@ -59,4 +72,11 @@ class FakeLLMRuntime:
             return self._tool_results.popleft()
         from agents.llm.runtime import ToolLoopResult
 
-        return ToolLoopResult(answer="", trace=[])
+        trace = []
+        registry = {tool.name: tool for tool in tools}
+        for name, args in self._tool_plan:
+            tool = registry[name]
+            tool.handler(tool.args_schema.model_validate(args))
+            trace.append(f"{name}: success")
+
+        return ToolLoopResult(answer=self._tool_answer, trace=tuple(trace))
