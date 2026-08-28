@@ -43,9 +43,10 @@ class ConsultantAgent:
             if key not in seen:
                 seen.add(key)
                 sources.append(source)
+        grounded_answer = result.answer if sources else "暂时没有检索到足够资料，请联系教务老师进一步确认。"
         return {
             "category": "consultation",
-            "answer": result.answer or "暂时没有检索到足够资料，请联系教务老师进一步确认。",
+            "answer": grounded_answer,
             "sources": sources,
             "tool_trace": list(result.trace),
         }

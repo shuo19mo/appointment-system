@@ -48,3 +48,4 @@ def test_consultant_does_not_invent_sources_when_model_skips_tool(repository):
     result = agent.process("未知政策")
 
     assert result["sources"] == []
+    assert result["answer"] == "暂时没有检索到足够资料，请联系教务老师进一步确认。"
