@@ -1,12 +1,11 @@
-from enum import Enum
-busy_periods_dict = {}  # { technician_id: [ {"start": "...", "end": "..."} ] }
+from enum import StrEnum
 
-class StateEnum(Enum):
-    CLASSIFY = "classify"
-    APPOINTMENT = "appointment"
-    CONSULT = "consult"
-    OTHER = "other"
-    
-class SharedState:
-    def __init__(self):
-        self.value = StateEnum.CLASSIFY
+
+class TaskType(StrEnum):
+    SCHEDULING = "scheduling"
+    CONSULTATION = "consultation"
+    UNRELATED = "unrelated"
+
+
+ACTIVE_BOOKING_STATUSES = ("confirmed", "pending")
+DEFAULT_TIMEZONE = "Asia/Shanghai"

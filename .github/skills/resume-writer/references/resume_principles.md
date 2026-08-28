@@ -1,53 +1,29 @@
-# 简历编写原则（大模型工程师方向）
+# 简历写作原则
 
-## 1. 项目描述四段式结构
+## 四段结构
 
-遵循"背景 -> 目标 -> 过程 -> 结果"逻辑：
+- 背景：多校区机构需要协调教师资质、校区、档期和学生课程冲突。
+- 目标：建立离线可用、可解释、可测试的排课与咨询系统。
+- 过程：每条写清动作、技术方案和解决的具体问题。
+- 结果：只使用真实测试、压测、日志或用户提供的指标。
 
-- **背景**：项目所属业务场景、模型目标、使用需求。例：本项目旨在构建面向多校区补习机构的智能排课 Agent 系统，服务学生/家长咨询、教师安排和课程确认流程。
-- **目标**：技术目标或改进方向。例：通过多 Agent 编排、RAG 课程知识库和学生偏好记忆降低教务重复沟通，提高教师匹配与排课准确性。
-- **过程**：关键技术方案和工程实现细节，明确候选人负责部分、使用工具、面临挑战。例：设计 TaskClassificationAgent 统一入口，基于共享状态路由排课、咨询和学生行为分析流程。
-- **结果**：量化数据展示最终效果。例：意图路由准确率达到 90% 左右，课程知识库 Top-3 命中率达到 85% 以上，首 token 延迟控制在 1s 级别。
+## 岗位取向
 
-## 2. 技术标签维度
+| 岗位 | 优先内容 |
+|---|---|
+| Agent Engineer | Coordinator、任务分类、会话隔离、排课 Agent、能力边界 |
+| Backend Engineer | SQLAlchemy、Repository、事务复检、API 状态码、数据模型 |
+| LLM Application | 离线规则基线、可选模型层、知识边界、评估设计 |
+| RAG Engineer | 关键词基线、KnowledgeDocument、实时数据不入知识库、语义检索规划 |
 
-简历需显式体现与岗位匹配度较高的技术要素：
+## 数字规则
 
-| 维度 | 关键词示例 |
-|------|-----------|
-| Agent 架构 | Multi-Agent, Task Routing, Agent Orchestration, State Manager, Tool Calling, MCP |
-| LLM 应用 | LangChain, Prompt Engineering, LLM Provider, OpenAI-compatible API, Streaming Response |
-| RAG 检索 | RAG, FAISS, Embedding, Vector Search, Knowledge Base, Citation, Retrieval Quality |
-| 教育排课业务 | Scheduling, Teacher Matching, Student Preference Learning, Dialogue State, Recommendation |
-| 数据与工程 | FastAPI, AsyncGenerator, SQLAlchemy, SQLite, Repository Pattern, Layered Architecture |
-| 测试评估 | Scenario Test, Agent Trajectory, Intent Accuracy, Hit Rate@K, Latency, Regression Test |
+不得写建议值为真实结果。测试数用 `rg -n '^def test_' tests | wc -l` 等现场命令统计；通过率必须来自本次测试输出。业务指标没有数据时写“设计评估指标”，不能写“提升 X%”。
 
-这些关键词既可出现在项目描述中，也可在"技术栈"部分单独列出，便于 ATS 和面试官识别。
+## 反模式
 
-## 3. 亮点挖掘与差异化策略
-
-面试官关注候选人主导了什么、有哪些独到之处、是否体现技术判断力：
-
-1. **介绍决策过程**：说明为什么采用中心化多 Agent 编排，而不是把所有逻辑塞进单个 Chatbot。
-2. **展示问题解决能力**：描述如何处理信息缺失、教师不可用、校区时间冲突、知识库无命中、模型调用失败等场景。
-3. **强调可复用性/通用性**：将补习机构排课场景抽象为多校区课程与教师资源调度，可迁移到职业培训、语言学校和兴趣教育等场景。
-4. **突出结果与影响力**：用排课成功率、重复询问减少、RAG 命中率、延迟、测试数量等指标体现项目价值。
-5. **保持可解释边界**：包装可以体现设计规划，但每个 claim 都要能落到源码、数据结构或明确的增强方向。
-
-## 4. 常见误区
-
-| 误区 | 说明 |
-|------|------|
-| 大而空 | 不要只写"负责大模型 Agent 系统"，要说明路由、状态、检索、偏好记忆怎么做 |
-| 工具堆砌 | 仅列 LangChain/FAISS/FastAPI 而不解释业务价值 |
-| 缺乏结果 | 没有量化指标或建议指标，项目难以评估 |
-| 逻辑混乱 | 过程描述堆很多模块，但看不出用户请求如何流转 |
-| 过度包装 | 把规划中的记忆、反思、MCP 接入说成完全生产化落地 |
-
-## 5. 改进建议
-
-- 多用"设计"、"实现"、"构建"、"优化"、"集成"等主动表达，少用"参与"、"协助"。
-- 每条 bullet 按"动作 + 技术方案 + 业务/指标结果"写。
-- 背景段必须讲清楚多校区补习机构的教务排课痛点，否则项目容易显得像玩具 demo。
-- 技术栈顺序要跟目标岗位一致：Agent 岗先写 Multi-Agent/MCP，RAG 岗先写 RAG/FAISS/Embedding，后端岗先写 FastAPI/SQLAlchemy/分层架构。
-- 如果使用建议指标，必须提醒用户根据真实测试、压测或日志确认。
+- 只堆 FastAPI、Agent、RAG 等关键词。
+- 把确定性类路由描述成自治多 Agent 协作。
+- 把 `requirements-ai.txt` 或空 `embedding` 字段写成已运行的 FAISS 系统。
+- 把进程内会话写成生产级长期记忆。
+- 描述不存在的客户、机构规模、营收或上线效果。

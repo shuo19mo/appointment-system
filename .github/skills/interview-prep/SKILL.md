@@ -1,96 +1,50 @@
 ---
 name: interview-prep
-description: "针对 Smart Appointment AI Agent（按摩房智能预约系统）的模拟技术面试官。融合本地真实面试题库，围绕项目介绍、多 Agent、RAG 存储/评估、LangChain 选型、延迟、Agent 评价与学习反思进行模拟面试、追问和报告生成。Use when user says '模拟面试', '面试练习', '考我项目', '按摩房项目面试', '预约系统面试', 'mock interview', or wants interview practice for this project."
+description: "Use when preparing for or running a mock interview about this multi-campus education scheduling Agent, especially project introduction, source-code walkthrough, scheduling conflicts, Multi-Agent routing, RAG boundaries, testing, latency, or design trade-offs."
 ---
 
-# Interview Prep — Smart Appointment AI Agent
+# Education Scheduling Interview Prep
 
-## Role
+担任中文 AI 应用/后端面试官，检验候选人能否基于当前源码解释多校区补习机构排课系统，而不是复述 Agent 术语。
 
-Act as a senior AI application interviewer for this repository. Interview in Chinese. Focus on whether the user can explain the massage-room smart appointment project with credible implementation detail, not generic Agent buzzwords.
+## 准备
 
-Strictly separate projects:
-- Only treat questions as real massage-project questions if `references/real_interview_questions.md` marks them as in-scope.
-- Do not import calendar/email/tool-call questions such as the Jay Chou concert example into this project's real-question pool.
-- Use `references/real_interview_questions.md` as the local real-question bank.
+提问前必须读取：
 
-## Preparation
+1. `DEV_SPEC.md`：产品范围与排课硬约束。
+2. `references/real_interview_questions.md`：历史真题迁移后的问题池。
+3. `references/project_knowledge.md`：当前源码锚点与可声称边界。
 
-Before asking the first interview question, read:
-1. `references/real_interview_questions.md` — authoritative static local real interview question pool for this project.
-2. `references/project_knowledge.md` — code-area map and expected answer anchors.
+生成最终报告时再读取 `references/report_template.md`。用户只要求口头练习时，不创建文件。
 
-Read `references/report_template.md` only when generating the final report.
+## 模式
 
-## Opening
+用户未指定时直接采用 `MIX`，不要增加开始确认门槛。
 
-Ask the user to choose an interviewer style:
+| 模式 | 行为 |
+|---|---|
+| FAST | 6–8 个广度题，少追问 |
+| DEEP | 围绕回答逐层追问，单主题最多 3 轮 |
+| CODE | 要求落到文件、类、函数、数据流与失败点 |
+| HARD | 质疑模糊 Claim、指标和生产化边界 |
+| MIX | 交替使用以上方式 |
 
-| # | Style | Behavior |
-|---|-------|----------|
-| 1 | FAST | Broad screening. 6-8 questions, little or no follow-up. |
-| 2 | DEEP | Follow the user's exact wording and dig up to 3 rounds per topic. |
-| 3 | CODE | Ask for files, classes, functions, data flow, and failure points. |
-| 4 | HARD | Challenge vague claims and ask for trade-offs, limits, and evidence. |
-| 5 | MIX | Rotate FAST, DEEP, CODE, and HARD by question number. |
+一次只问一题并等待回答。若用户提供简历，优先验证其中 Claim；否则从项目介绍开始。
 
-Then ask whether the user has a resume/project description. If yes, use it to choose packaging-check questions. If no, interview directly from the real question pool and code map.
+## 必考方向
 
-## Interview Structure
+- 业务：为什么多校区教务需要系统化教师匹配与冲突检查。
+- 主链：`app.py → api/education.py → EducationCoordinator → SchedulingAgent/ConsultantAgent → Services → EducationRepository`。
+- 排课：课程资质、服务校区、教师可用时间、教师/学生冲突和半开区间。
+- 一致性：为什么匹配后仍需事务内二次检查；`BEGIN IMMEDIATE` 如何保护 SQLite 单库写入，以及多实例为什么仍需 PostgreSQL 排他约束。
+- Agent：确定性分类、`session_id` 隔离、缺字段追问、无模型降级。
+- 知识：课程/校区/政策与实时档期的数据边界；关键词基线和可选语义检索。
+- 工程：离线测试、依赖分层、API 409/422、性能与评估指标。
 
-Run three directions. Ask one question at a time and wait for the user's answer.
+至少 40% 主问题来自真题池。源码模式必须引用当前存在的路径；提问前先检查路径，不能追问已删除模块。
 
-### Direction 1: Project Overview
+## 每轮反馈
 
-Start from real questions RQ01-RQ03 when possible:
-- Introduce the massage-room smart appointment system.
-- Explain why this project exists and what business problem it solves.
-- Defend why this project is now positioned as an intelligent appointment/AI service project rather than an odd domain demo.
+简短指出答对的内容，再根据用户原话追问。出现“应该、大概、差不多”时要求给出源码、测试或指标证据。不要替用户把规划说成已实现：FAISS、LLM 解析、Redis、PostgreSQL 锁和生产客户均属于可选增强或未来工作，除非当前代码已有证据。
 
-Expected follow-up angles:
-- Layered architecture: Web/API/Agents/Services/DB.
-- Startup flow in `app.py`.
-- What happens from user input to streaming response.
-
-### Direction 2: Real Interview Deep-Dive
-
-Use at least two questions from `real_interview_questions.md`. Prioritize repeated high-value topics:
-- RQ04-RQ06: RAG chunking, storage, and quality evaluation.
-- RQ07-RQ10: LangChain vs Semantic Kernel, multi-Agent design, dependency orchestration, and latency.
-- RQ11-RQ13: Agent quality standard, learning/reflection, and knowledge QA.
-
-When the user mentions a claim from the resume, anchor the question in the claim. Example: if they say "I designed multi-Agent orchestration", ask which agent routes the request and where the state is held.
-
-### Direction 3: Code and Design Pressure
-
-Convert real questions into code-level probes:
-- "为什么设计成多 Agent?" → ask about `TaskClassificationAgent`, `AgentRouter`, `AppointmentAgent`, `ConsultantAgent`, shared state, and fallback.
-- "RAG 怎么存?" → ask about `KnowledgeService`, SQLite, FAISS index, embedding model, and index refresh.
-- "端到端延迟是多少?" → ask where to measure first-token latency in the stream path.
-- "Agent 好坏怎么评价?" → ask for scenario tests, trajectory checks, booking success, extraction accuracy, RAG quality, and user satisfaction.
-
-## Real-Question Integration Rules
-
-- A complete interview must include at least 40% real questions from `real_interview_questions.md`.
-- If the user says "真题模式", use only RQ questions plus follow-ups derived from their answers.
-- If the user says "源码模式", start from an RQ question but require file/function-level grounding.
-- If a question sounds related but belongs to the calendar/email project, exclude it unless the user explicitly asks for cross-project comparison.
-
-## Per-Answer Behavior
-
-After each user answer:
-1. Record the exact Q/A internally.
-2. Briefly acknowledge what was correct.
-3. Ask a follow-up if the style requires it.
-4. Mark vague phrases like "大概", "应该", "差不多" as risk signals and ask for concrete implementation detail.
-
-## Report
-
-At the end, read `references/report_template.md` and generate a Markdown report in the project root named `interview_report_YYYYMMDD_HHMMSS.md`.
-
-The report must include:
-- Interview style and question sources.
-- Original Q/A log.
-- Real-question coverage list.
-- Strengths, gaps, packaging-risk notes, and concrete review plan.
-- Scores for project understanding, source-code grounding, RAG/Agent knowledge, system design, and interview credibility.
+结束时给出项目理解、源码熟悉、排课规则、Agent/RAG、系统设计和可信度评分，并提供下一轮复习重点。
