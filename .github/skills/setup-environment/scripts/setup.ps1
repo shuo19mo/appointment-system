@@ -3,7 +3,6 @@ param(
   [switch]$Force,
   [switch]$Run,
   [switch]$NoVerify,
-  [switch]$AI,
   [switch]$Test
 )
 $ErrorActionPreference = 'Stop'
@@ -42,10 +41,12 @@ if (-not (Test-Path $VenvPython)) { & $Python -m venv .venv }
 
 & $VenvPython -m pip install --upgrade pip --quiet
 & $VenvPython -m pip install -r requirements.txt
-if ($AI) { & $VenvPython -m pip install -r requirements-ai.txt }
 if ($Test) { & $VenvPython -m pip install -r requirements-dev.txt }
 
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+if (-not (Test-Path .env)) {
+  Copy-Item .env.example .env
+  Write-Warning 'Created .env. Set DEEPSEEK_API_KEY before verification.'
+}
 New-Item -ItemType Directory -Force -Path data | Out-Null
 if (-not $NoVerify) { & $VenvPython (Join-Path $ScriptDir 'verify_env.py') }
 if ($Test) {

@@ -1,19 +1,18 @@
-# EduFlow AI：多校区智能排课系统
+# EduFlow AI：DeepSeek 多校区智能排课 Agent
 
-EduFlow AI 是一个面向补习机构的教师匹配、课程安排与课程咨询系统。它用 FastAPI、SQLAlchemy 和确定性排课规则处理实时档期与冲突，用可选的 LLM/RAG 能力增强自然语言理解和知识问答。
+EduFlow AI 面向类似新东方的多校区补习机构，用 DeepSeek LLM Agent 理解家长或教务的自然语言需求，再用确定性排课服务校验教师资质、服务校区、档期、教师冲突和学生冲突。
 
-项目已完成教育领域重构：校区、教师、课程、学生、授课资格、服务校区、教师档期和课程安排均为独立数据模型。核心流程不依赖外部模型，克隆后即可运行和测试。
+生产聊天强制使用 DeepSeek，模型不可用时不会切换到本地关键词或正则解析器。自动化测试注入 Fake LLM 和 Fake Embedding，因此不会访问模型网络或产生 API 费用。
 
-## 解决的问题
+## 核心能力
 
-多校区机构的教务通常需要反复核对教师是否能教目标课程、是否服务目标校区、教师和学生是否撞课，以及指定教师无档期时谁能替代。EduFlow AI 将这些判断收敛到统一服务中：
-
-- 按学科、年级、校区、时间和教师偏好匹配教师。
-- 同时阻止教师与学生的重叠课程。
-- 指定教师不可用时返回满足硬约束的替代人选。
-- 使用稳定评分解释推荐原因。
-- 将课程、教师、校区和机构政策放入独立知识库。
-- 使用 `session_id` 隔离不同家庭的多轮需求。
+- DeepSeek 结构化路由：区分排课、课程咨询与能力范围外请求。
+- DeepSeek 结构化提取：支持多轮补充学生、校区、学科、年级、时间、时长和教师偏好。
+- 有界工具调用：模型最多执行 4 步只读查询，工具 trace 不记录联系方式、完整参数或思维过程。
+- 安全确认门：聊天中的模型无法直接创建课程；先返回候选教师，用户确认后才通过 `SchedulingService` 写库。
+- FAISS RAG：本地 `BAAI/bge-small-zh-v1.5` Embedding 检索课程、教师、校区和政策资料，咨询回答带来源。
+- 多校区排课：硬约束筛选、稳定软排序、双边冲突检查、UTC 持久化和 SQLite 并发写入保护。
+- 教务后台：维护校区、教师、课程、学生、教师资格、服务校区与档期。
 
 V1 聚焦一对一课程，不包含支付、班课、教室容量、考勤和复杂权限。
 
@@ -23,103 +22,74 @@ V1 聚焦一对一课程，不包含支付、班课、教室容量、考勤和�
 Web / API
     ↓
 EducationCoordinator
-    ├── TaskClassificationAgent
-    ├── SchedulingAgent ── SchedulingInputParser
-    │                     └── SchedulingService
-    └── ConsultantAgent ── KnowledgeService
-                              ↓
-                    EducationRepository
-                              ↓
-                     SQLAlchemy / SQLite
+    ├── TaskClassificationAgent ── DeepSeek structured output
+    ├── SchedulingAgent
+    │   ├── LLMSchedulingInputParser ── DeepSeek structured output
+    │   ├── EducationTools ── real database lookups / teacher matching
+    │   └── confirmation gate ── SchedulingService ── Repository
+    └── ConsultantAgent
+        └── DeepSeek bounded tool loop ── search_knowledge ── FAISS
+                                                        ↓
+                                             SQLAlchemy / SQLite
 ```
 
-排课硬约束全部来自数据库。知识检索只处理相对稳定的课程和政策文本，不把实时档期写入向量库。详细产品和技术约束见 [DEV_SPEC.md](DEV_SPEC.md)。
-
-## 核心规则
-
-候选教师必须同时具备目标课程资格、服务目标校区、目标时间落在可用时间内，并且没有已有有效课程冲突。学生也不能在同一时段重复排课。
-
-重叠判定使用半开区间：
-
-```text
-new_start < existing_end AND new_end > existing_start
-```
-
-因此 14:00–15:30 与 15:30–17:00 可以相邻安排。满足硬约束后，系统再按指定教师、专长、学生偏好和当日负载评分。
+LLM 负责语义理解和工具选择；时间冲突、资格、校区、负载、候选排序和最终写入仍由可测试的确定性服务负责。实时档期永远查询数据库，不进入向量知识库。
 
 ## 快速启动
 
-要求 Python 3.11 或更高版本。
+要求 Python 3.11+ 和 DeepSeek API Key。首次启动会下载本地 Embedding 模型。
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env
+```
+
+编辑 `.env`：
+
+```env
+AGENT_MODE=llm
+MODEL_PROVIDER=deepseek
+DEEPSEEK_API_KEY=你的密钥
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-v4-flash
+```
+
+然后启动：
+
+```bash
 uvicorn app:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 打开：
 
-- 控制台：[http://127.0.0.1:8001](http://127.0.0.1:8001)
-- OpenAPI：[http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
-- 健康检查：[http://127.0.0.1:8001/health](http://127.0.0.1:8001/health)
+- 控制台：http://127.0.0.1:8001
+- OpenAPI：http://127.0.0.1:8001/docs
+- 存活检查：http://127.0.0.1:8001/health
+- Agent 就绪检查：http://127.0.0.1:8001/ready
 
-`.env.example` 为本地开发显式开启 `AUTO_INIT_DB=true` 与 `SEED_DEMO_DATA=true`，因此复制为 `.env` 后首次启动会创建 Schema 和演示数据。生产环境应将两项设为 `false`，先执行受控迁移再启动；仅仅 `import app` 不会写数据库。
+缺少 `DEEPSEEK_API_KEY`、`AGENT_MODE` 不是 `llm` 或 provider 不是 `deepseek` 时，应用会在启动阶段明确失败。真实 `.env` 不应提交到 Git。
 
-## 配置
-
-核心配置：
-
-```env
-DATABASE_URL=sqlite:///data/education_scheduling.db
-DB_ECHO=false
-SESSION_TTL_SECONDS=1800
-AUTO_INIT_DB=true
-SEED_DEMO_DATA=true
-```
-
-本地规则解析、排课 API 和关键词知识检索不需要模型密钥。若要开发 LLM 或 Embedding 增强功能，再安装可选依赖并填写对应配置：
+也可使用项目 Skill 脚本：
 
 ```bash
-python -m pip install -r requirements-ai.txt
+bash .github/skills/setup-environment/scripts/setup.sh --test
 ```
 
-任何真实 `.env` 都不应提交到 Git。
+## 排课安全规则
 
-## API 示例
+候选教师必须同时满足目标课程资格、服务目标校区、目标时间完整位于可用区间、教师无冲突、学生无冲突。重叠判定使用半开区间：
 
-查询教师候选：
-
-```bash
-curl -X POST http://127.0.0.1:8001/api/schedules/match \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "student_id": 1,
-    "course_id": 1,
-    "campus_id": 1,
-    "start_at": "2026-09-05T14:00:00+08:00",
-    "duration_minutes": 90,
-    "preferred_teacher_id": 1
-  }'
+```text
+new_start < existing_end AND new_end > existing_start
 ```
 
-确认创建课程安排：
+因此 14:00–15:30 与 15:30–17:00 可以相邻安排。硬约束通过后，再按指定教师、专长、学生历史偏好和当日负载排序。
 
-```bash
-curl -X POST http://127.0.0.1:8001/api/schedules \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "student_id": 1,
-    "teacher_id": 1,
-    "course_id": 1,
-    "campus_id": 1,
-    "start_at": "2026-09-05T14:00:00+08:00",
-    "duration_minutes": 90
-  }'
-```
+聊天创建流程必须经过“匹配候选 → 用户确认 → 服务端重新校验 → 写库”。管理 API 的 `POST /api/schedules` 是教务直接操作入口，不是 LLM 工具。
 
-自然语言入口：
+## Chat 示例
 
 ```bash
 curl -X POST http://127.0.0.1:8001/api/chat \
@@ -130,61 +100,45 @@ curl -X POST http://127.0.0.1:8001/api/chat \
   }'
 ```
 
-主要端点：
+响应包含 `request_id`、`agent_mode`、`model` 和经过清洗的 `tool_trace`。模型不可用时 `/api/chat` 返回 503，不会切换到规则解析。
+
+## 主要 API
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| GET | `/api/campuses` | 校区列表 |
-| POST/PUT/DELETE | `/api/campuses[/{id}]` | 新增、更新、停用校区 |
-| GET | `/api/courses` | 课程列表 |
-| POST/PUT/DELETE | `/api/courses[/{id}]` | 新增、更新、停用课程 |
-| GET | `/api/teachers` | 教师列表 |
-| POST/PUT/DELETE | `/api/teachers[/{id}]` | 新增、更新、停用教师 |
-| GET/POST/PUT/DELETE | `/api/students[/{id}]` | 学生资料管理 |
-| POST/DELETE | `/api/teachers/{id}/courses/{course_id}` | 教师授课资格 |
-| POST/DELETE | `/api/teachers/{id}/campuses/{campus_id}` | 教师服务校区 |
-| GET | `/api/teachers/{id}/availability` | 教师可用时间 |
-| POST/DELETE | `/api/teachers/{id}/availability[/{availability_id}]` | 教师档期维护 |
-| POST | `/api/schedules/match` | 匹配候选教师 |
-| POST | `/api/schedules` | 创建课程安排 |
-| GET | `/api/schedules` | 查询课程安排 |
-| DELETE | `/api/schedules/{id}` | 取消课程安排 |
-| GET/POST | `/api/knowledge` | 列出/新增课程与政策知识 |
-| GET | `/api/knowledge/search` | 关键词检索知识 |
-| POST | `/api/chat` | 统一 Agent 入口 |
+| GET | `/health` | 进程存活 |
+| GET | `/ready` | LLM 与向量服务就绪 |
+| POST | `/api/chat` | DeepSeek Agent 统一入口 |
+| GET/POST | `/api/knowledge` | 知识维护 |
+| GET | `/api/knowledge/search` | FAISS 语义检索 |
+| POST | `/api/schedules/match` | 确定性候选教师匹配 |
+| POST | `/api/schedules` | 教务直接创建课程安排 |
+| GET/DELETE | `/api/schedules[/{id}]` | 查询或取消课程安排 |
+| GET/POST/PUT/DELETE | `/api/campuses`、`courses`、`teachers`、`students` | 基础资料管理 |
 
 ## 测试
 
 ```bash
 python -m pip install -r requirements-dev.txt
 pytest -q
-python -m compileall agents api config db services web app.py
+python -m compileall -q agents api config db services web app.py
 ```
 
-测试覆盖结构化解析、缺失字段追问、教师替代、稳定排序、教师/学生冲突、相邻课程、跨时区往返、SQLite 并发占位、会话隔离、管理 CRUD、知识检索和 API 主流程。测试不会访问真实模型或网络。
+测试覆盖强制配置、LLM 路由与结构化提取、工具调用上限、确认门、FAISS 排序、grounded 咨询、排课不变量、会话隔离、API、时区和 SQLite 并发占位。测试通过依赖注入运行 Fake providers；真实 DeepSeek smoke test 需要开发者单独配置密钥后执行。
 
-## 数据与迁移说明
+## 数据与迁移
 
-V2 教育模型与旧到店预约模型不是同一业务语义，本仓库采用明确的 clean-slate 迁移：使用新的 `education_scheduling.db`，不自动猜测或搬运旧客户/预约数据。SQLite 每次连接启用外键约束，时间统一保存为 UTC；创建课程安排时用 `BEGIN IMMEDIATE` 串行化“检查冲突 + 写入”。生产多实例部署仍建议迁移到 PostgreSQL 排他约束。详见 [docs/migrations/v2-clean-slate.md](docs/migrations/v2-clean-slate.md)。
+教育排课模型与旧按摩/到店预约模型没有可靠的一一映射，本仓库使用独立 `education_scheduling.db` 和 clean-slate 初始化。开发环境可设置 `AUTO_INIT_DB=true`、`SEED_DEMO_DATA=true`；生产环境应关闭并使用受控迁移。详见 [docs/migrations/v2-clean-slate.md](docs/migrations/v2-clean-slate.md)。
 
 ## 目录
 
 ```text
-agents/                 任务分类、排课、咨询和会话状态
+agents/                 DeepSeek 路由、排课、咨询、工具与会话
 api/                    FastAPI 教育业务端点
-config/                 数据库、时区和可选模型配置
+config/                 强制 Agent 配置、数据库和 provider
 db/                     教育领域模型与 Repository
-services/               排课规则和知识检索服务
-tests/                  离线验收测试
-web/                    教务控制台
-.github/skills/         环境搭建、学习、面试和简历 Skills
-DEV_SPEC.md             产品范围、领域规则与验收标准
+services/               排课规则与 FAISS 检索
+tests/                  Fake provider 离线验收测试
+web/                    学生聊天与教务后台
+.github/skills/         环境、学习、面试和简历 Skills
 ```
-
-## 后续演进
-
-- 使用 PostgreSQL 时间范围排他约束支持多实例高并发写入；当前 SQLite 已在单数据库文件内串行化排课创建。
-- 将进程内会话替换为 Redis，并增加会话恢复与过期监控。
-- 增加教室容量、班课、考勤和教务权限。
-- 为教师专长加入 Embedding 语义加分，并建设离线评估集。
-- 对接机构现有教务系统、消息通知和日历。

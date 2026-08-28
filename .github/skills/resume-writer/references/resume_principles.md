@@ -13,8 +13,8 @@
 |---|---|
 | Agent Engineer | Coordinator、任务分类、会话隔离、排课 Agent、能力边界 |
 | Backend Engineer | SQLAlchemy、Repository、事务复检、API 状态码、数据模型 |
-| LLM Application | 离线规则基线、可选模型层、知识边界、评估设计 |
-| RAG Engineer | 关键词基线、KnowledgeDocument、实时数据不入知识库、语义检索规划 |
+| LLM Application | DeepSeek 结构化输出、有界工具循环、确认安全、Fake provider 测试 |
+| RAG Engineer | FAISS、本地 Embedding、grounded 来源、实时数据不入知识库 |
 
 ## 数字规则
 
@@ -24,6 +24,6 @@
 
 - 只堆 FastAPI、Agent、RAG 等关键词。
 - 把确定性类路由描述成自治多 Agent 协作。
-- 把 `requirements-ai.txt` 或空 `embedding` 字段写成已运行的 FAISS 系统。
+- 把 Fake provider 自动化测试写成真实 DeepSeek 线上调用验证。
 - 把进程内会话写成生产级长期记忆。
 - 描述不存在的客户、机构规模、营收或上线效果。

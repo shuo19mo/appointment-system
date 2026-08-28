@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-FORCE=0; RUN=0; VERIFY=1; AI=0; TESTS=0
+FORCE=0; RUN=0; VERIFY=1; TESTS=0
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
     --run) RUN=1 ;;
     --no-verify) VERIFY=0 ;;
-    --ai) AI=1 ;;
     --test) TESTS=1 ;;
     *) echo "Unknown flag: $arg" >&2; exit 2 ;;
   esac
@@ -52,10 +51,12 @@ VENV_PY="$PROJECT_ROOT/.venv/bin/python"
 
 "$VENV_PY" -m pip install --upgrade pip --quiet
 "$VENV_PY" -m pip install -r requirements.txt
-if [ "$AI" -eq 1 ]; then "$VENV_PY" -m pip install -r requirements-ai.txt; fi
 if [ "$TESTS" -eq 1 ]; then "$VENV_PY" -m pip install -r requirements-dev.txt; fi
 
-if [ ! -f .env ]; then cp .env.example .env; fi
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "Created .env. Set DEEPSEEK_API_KEY before verification." >&2
+fi
 mkdir -p data
 
 if [ "$VERIFY" -eq 1 ]; then "$VENV_PY" "$SCRIPT_DIR/verify_env.py"; fi

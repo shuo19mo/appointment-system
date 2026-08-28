@@ -1,132 +1,115 @@
-# 多校区补习机构智能排课系统 DEV SPEC
+# 多校区补习机构 DeepSeek 排课 Agent DEV SPEC
 
 ## 1. 产品定位
 
-本项目从到店服务预约系统迁移为面向补习机构的智能排课与课程咨询系统。机构可维护多个校区、教师、课程与教师档期；学生或教务人员可以通过自然语言查询课程、匹配教师并创建一对一课程安排。
+本系统面向多校区补习机构。学生、家长或教务通过自然语言提出排课与课程咨询需求；DeepSeek Agent 负责语义理解和受限工具选择，确定性业务服务负责实时校验和数据库写入。
 
 ## 2. V1 范围
 
 V1 必须支持：
 
-- 多校区、教师、课程、学生基础信息管理。
-- 教师授课资格、可服务校区和可用时间管理。
-- 根据学科、年级、校区、上课时间和教师偏好匹配教师。
-- 创建、查询和取消一对一课程安排。
-- 同时阻止教师时间冲突和学生时间冲突。
-- 课程、校区、教师与机构政策咨询。
-- 按 `session_id` 隔离多轮对话状态。
-- 没有模型密钥时仍可运行规则解析、API 和完整自动化测试。
+- 多校区、教师、课程、学生资料管理。
+- 教师授课资格、服务校区和可用时间管理。
+- 根据学科、年级、校区、时间和教师偏好匹配教师。
+- 创建、查询、确认和取消一对一课程安排。
+- 教师与学生双边时间冲突检查。
+- 课程、校区、教师和机构政策的 FAISS RAG 咨询。
+- 按 `session_id` 隔离多轮状态。
+- 生产聊天强制使用 DeepSeek；配置或调用失败时显式失败。
+- 自动化测试注入 Fake LLM / Embedding，不访问网络。
 
-V1 不包含支付、班课、教室容量、考勤、复杂权限与第三方教务系统同步。
+V1 不包含支付、班课、教室容量、考勤、复杂权限和第三方教务系统同步。
 
-## 3. 用户与核心场景
+## 3. Agent 架构
 
-### 学生/家长
+`EducationCoordinator` 是统一入口：
 
-- “想给初二学生约周六下午的数学课，在浦东校区。”
-- 指定或不指定教师，查看可用候选并确认排课。
-- 咨询课程内容、适合年级、校区地址、调课与取消规则。
+1. `TaskClassificationAgent` 调用 DeepSeek 结构化输出，将请求路由到 `scheduling`、`consultation` 或 `unsupported`。
+2. `SchedulingAgent` 使用 DeepSeek 提取 `action` 和排课字段，随后查询真实数据库并调用 `SchedulingService`。
+3. `ConsultantAgent` 通过最多 4 步的 DeepSeek 工具循环调用 `search_knowledge`，只能依据 FAISS 返回资料回答。
+4. 工具 trace 只包含工具名与 `success/error/N candidates`，不得包含 API Key、联系方式、完整参数、原始用户文本或模型思维过程。
 
-### 教务人员
+生产路径不允许关键词分类、正则日期解析或规则聊天降级。模型不可用时返回稳定 503。
 
-- 维护教师可授课程、校区和可用时间。
-- 查看教师与学生课程安排。
-- 发现指定教师不可用时获取替代教师。
+## 4. 强制运行配置
 
-## 4. 领域模型
+- `AGENT_MODE=llm`
+- `MODEL_PROVIDER=deepseek`
+- `DEEPSEEK_API_KEY` 非空
+- `LLM_BASE_URL` 默认 `https://api.deepseek.com`
+- `LLM_MODEL` 默认 `deepseek-v4-flash`
+- 本地 Embedding 默认 `BAAI/bge-small-zh-v1.5`
 
-- `Campus`：校区名称、地址、状态。
-- `Teacher`：姓名、简介、专长、状态、最大日课时。
-- `Course`：名称、学科、年级、时长、简介、状态。
-- `TeacherCourse`：教师与课程资格关联。
-- `TeacherCampus`：教师与校区服务关联。
-- `TeacherAvailability`：教师可用时间段。
-- `Student`：学生姓名、年级、联系方式与偏好。
-- `ClassBooking`：学生、教师、课程、校区、开始/结束时间和状态。
-- `KnowledgeDocument`：课程、校区、教师、政策类知识。
-- `StudentBehavior` / `StudentPreference`：查询、选择和历史偏好。
+应用模块导入不得验证密钥或创建数据库；FastAPI lifespan 在生产启动时创建真实 DeepSeek runtime 和本地 Embedding。测试通过 `create_app(..., llm_runtime=fake, embedding_provider=fake)` 注入。
 
-## 5. 排课规则
+## 5. 排课状态与确认门
 
-### 硬约束
+`SchedulingExtraction` 输出：
 
-候选教师必须同时满足：
+- `action`: `schedule | confirm | cancel`
+- `booking_id`
+- `student_name`
+- `campus_name`
+- `subject`
+- `grade`
+- `start_at`
+- `duration_minutes`
+- `preferred_teacher_name`
 
-1. 具备目标课程授课资格。
+缺少排课必填字段时返回明确追问。信息完整后只生成候选和 `pending_booking`。只有 DeepSeek 提取到 `confirm`，且当前 session 存在候选方案、教师属于候选列表时，服务端才调用 `SchedulingService.create_booking`。普通 Agent 工具不得注册 `create_booking`。
+
+取消动作必须提取真实 `booking_id`；不存在时不修改数据库。
+
+## 6. 排课确定性规则
+
+候选教师必须：
+
+1. 具备目标课程资格。
 2. 服务目标校区。
-3. 目标时间完整落在教师可用时间段内。
+3. 时间完整位于教师可用区间。
 4. 与教师已有有效课程不重叠。
 5. 与学生已有有效课程不重叠。
 
-时间重叠判定统一使用半开区间：`start < existing_end AND end > existing_start`。相邻课程不算冲突。
+重叠使用半开区间 `start < existing_end AND end > existing_start`。软排序为指定教师 +100、专长 +20、学生偏好 +15、低负载最高 +10，最后按姓名和 ID 稳定排序。
 
-### 软排序
+创建时必须在事务中重新检查所有约束。SQLite 使用 `BEGIN IMMEDIATE` 串行化“检查 + 写入”；多实例生产应迁移 PostgreSQL 时间范围排他约束。
 
-在满足硬约束后按以下分值排序：
+## 7. 知识检索边界
 
-- 指定教师：+100。
-- 教师专长命中课程学科或年级：+20。
-- 学生历史偏好教师：+15。
-- 同时段教师当日负载更低：最高 +10。
-- 姓名与 ID 作为稳定排序兜底，确保结果可重复。
+- `VectorKnowledgeService` 对 `KnowledgeDocument` 使用归一化向量和 `faiss.IndexFlatIP`。
+- 文档 `(id, updated_at)` 集合变化时重建索引。
+- RAG 只管理课程、教师简介、校区和政策。
+- 实时教师档期和排课结果必须查询 Repository / SchedulingService。
+- Consultation 回答返回文档 `id` 与 `category` 来源；检索不足时不得编造。
 
-Embedding 只用于教学需求与教师专长的语义加分，不得替代时间冲突、资格和校区规则。
+## 8. 领域与数据一致性
 
-## 6. Agent 与路由
+核心模型：`Campus`、`Teacher`、`Course`、`TeacherCourse`、`TeacherCampus`、`TeacherAvailability`、`Student`、`ClassBooking`、`KnowledgeDocument`。
 
-请求首先进入 `TaskClassificationAgent`：
+- 会话由 `session_id` 隔离并按 TTL 清理。
+- 时间输入必须带时区，持久化统一 UTC，API 输出转换为 `Asia/Shanghai`。
+- 应用导入不自动创建 Schema 或写演示数据。
+- 教育模型使用 clean-slate 数据库，不猜测迁移旧到店预约记录。
 
-- 排课、改期、取消、查档期 → `SchedulingAgent`。
-- 课程、校区、教师和政策问题 → `ConsultationAgent`。
-- 其他请求 → 返回能力边界说明。
+## 9. API 与错误
 
-`SchedulingAgent` 负责收集 `student_id/course_id/campus_id/start_at/duration_minutes/preferred_teacher_id`。缺失必填项时返回明确追问；信息齐全时先匹配候选，确认后创建课程安排。
+- `GET /health`：进程存活，不代表模型就绪。
+- `GET /ready`：检查 runtime、coordinator 和向量服务存在，返回当前模型，不发送付费请求。
+- `POST /api/chat`：返回 `session_id`、`request_id`、`agent_mode=llm`、`model` 和清洗后的 `tool_trace`。
+- DeepSeek 调用失败：503。
+- 资源不存在：404；业务冲突：409；输入无效：422。
 
-模型可用于自然语言结构化提取和咨询答案润色，但必须提供本地规则降级路径。系统不得输出模型内部思维链，只输出“正在查询教师档期”等可审计状态。
-
-## 7. API
-
-- `GET /api/campuses`
-- `GET /api/courses`
-- `GET /api/teachers`
-- `GET /api/teachers/{teacher_id}/availability`
-- `POST /api/schedules/match`
-- `POST /api/schedules`
-- `GET /api/schedules`
-- `DELETE /api/schedules/{booking_id}`
-- `POST /api/chat`
-- `GET/POST /api/knowledge`
-- `GET /health`
-
-错误响应使用统一的 `detail` 文本；资源不存在返回 404，业务冲突返回 409，输入不合法返回 422。
-
-## 8. 会话与数据一致性
-
-- 对话状态必须以客户端提供或服务端生成的 `session_id` 存储，禁止所有用户共享单例状态。
-- V1 使用进程内会话存储，并提供 TTL 清理接口；生产环境可替换 Redis。
-- 创建排课时在同一数据库事务中重新检查冲突，不能只信任之前的匹配结果。
-- SQLite V1 使用 `BEGIN IMMEDIATE` 串行化排课创建；数据库繁忙映射为 409。多实例生产部署应使用 PostgreSQL 时间范围排他约束。
-- 时间全部使用带时区 ISO 8601；默认业务时区为 `Asia/Shanghai`。
-- 持久化统一为 UTC，API 响应转换为 `Asia/Shanghai`。
-
-### 数据迁移边界
-
-旧到店预约数据与教育排课模型没有可靠的一一映射。V2 使用独立数据库并执行 clean-slate 初始化，不在应用导入时自动创建 Schema 或写入演示数据。开发环境通过 `AUTO_INIT_DB` 和 `SEED_DEMO_DATA` 显式启用初始化；生产环境必须关闭并采用受控迁移。
-
-## 9. 知识检索
-
-- RAG 仅管理课程说明、教师简介、校区信息与机构政策。
-- 实时教师档期和排课结果必须查询数据库，不能来自向量库。
-- 无 Embedding 密钥时使用可测试的关键词检索；有配置时可启用 FAISS 语义检索。
+管理 API 可直接维护资料和课程安排，但不是模型工具。
 
 ## 10. 验收标准
 
-- 学科、年级、校区、时间、时长和教师偏好能被结构化解析。
-- 缺少必填信息时返回针对性追问。
-- 指定教师不可用时返回其他满足硬约束的教师。
-- 教师和学生均不能产生重叠课程；相邻课程允许创建。
-- 两个 `session_id` 的上下文互不影响。
-- 课程政策咨询只读取知识库，不读取排课结果作为知识文本。
-- 自动化测试不访问真实 LLM、Embedding 或网络。
-- 页面、API、README、环境示例和项目 Skills 均使用教育排课领域语言。
-- `pytest`、Python 编译检查和应用健康检查全部通过。
+- 缺失或错误 DeepSeek 配置导致启动失败。
+- 每个聊天请求先经过 LLM 路由；排课字段由 LLM 结构化提取。
+- 受限工具循环真实执行数据库/FAISS 查询，最多 4 步。
+- 未确认请求不能创建课程；确认后恰好创建一条。
+- 教师和学生不能重叠排课，相邻课程允许。
+- FAISS 能按语义排序知识，咨询答案带来源。
+- 两个 session 上下文互不影响。
+- 页面显示 DeepSeek Agent 身份并安全使用 `textContent`。
+- pytest、编译、依赖、Shell、Skill 和 diff 检查全部通过。
+- 只有执行过真实密钥 smoke test 时，文档或简历才可声称“已验证线上 DeepSeek 调用”。

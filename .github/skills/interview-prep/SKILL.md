@@ -37,14 +37,14 @@ description: "Use when preparing for or running a mock interview about this mult
 - 主链：`app.py → api/education.py → EducationCoordinator → SchedulingAgent/ConsultantAgent → Services → EducationRepository`。
 - 排课：课程资质、服务校区、教师可用时间、教师/学生冲突和半开区间。
 - 一致性：为什么匹配后仍需事务内二次检查；`BEGIN IMMEDIATE` 如何保护 SQLite 单库写入，以及多实例为什么仍需 PostgreSQL 排他约束。
-- Agent：确定性分类、`session_id` 隔离、缺字段追问、无模型降级。
-- 知识：课程/校区/政策与实时档期的数据边界；关键词基线和可选语义检索。
-- 工程：离线测试、依赖分层、API 409/422、性能与评估指标。
+- Agent：DeepSeek 结构化路由与字段提取、最多 4 步工具循环、`session_id` 隔离和确认门。
+- 知识：FAISS + 本地 Embedding、grounded 回答与实时档期数据库边界。
+- 工程：Fake provider 离线测试、强制启动配置、API 503/409/422、性能与评估指标。
 
 至少 40% 主问题来自真题池。源码模式必须引用当前存在的路径；提问前先检查路径，不能追问已删除模块。
 
 ## 每轮反馈
 
-简短指出答对的内容，再根据用户原话追问。出现“应该、大概、差不多”时要求给出源码、测试或指标证据。不要替用户把规划说成已实现：FAISS、LLM 解析、Redis、PostgreSQL 锁和生产客户均属于可选增强或未来工作，除非当前代码已有证据。
+简短指出答对的内容，再根据用户原话追问。出现“应该、大概、差不多”时要求给出源码、测试或指标证据。当前代码已实现 DeepSeek 结构化解析、受限工具调用和 FAISS；但只有完成真实密钥 smoke test 后才能声称线上模型调用已验证。Redis、PostgreSQL 排他约束、生产客户和业务提升仍是未来工作。
 
 结束时给出项目理解、源码熟悉、排课规则、Agent/RAG、系统设计和可信度评分，并提供下一轮复习重点。

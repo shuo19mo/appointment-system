@@ -23,7 +23,7 @@ description: "Use when studying, reviewing, or checking mastery of this multi-ca
 - “复习薄弱点”：选最近平均分最低且未掌握的条目。
 - “学习新知识点”：选未学习条目。
 - “真题打卡”：选择映射真题的未掌握条目。
-- “Agent 推荐”：依次优先 D3 排课硬约束、D4 事务一致性、D2 主链与会话、D5 测试；都学过后选最低分。
+- “Agent 推荐”：依次优先 D2 DeepSeek 主链、D3 排课硬约束、D4 事务一致性、D6 FAISS RAG、D7 测试；都学过后选最低分。
 - “查看进度”：展示进度，不提问。
 
 ## 学习循环
@@ -49,9 +49,10 @@ description: "Use when studying, reviewing, or checking mastery of this multi-ca
 
 明确区分三类内容：
 
-- 已实现：教育数据模型、确定性分类/解析、教师匹配、双方冲突、事务二次检查、会话隔离、关键词知识检索、API 和离线测试。
+- 已实现：教育数据模型、DeepSeek 结构化路由与提取、LangChain 有界工具调用、FAISS RAG、确认门、教师匹配、双方冲突、事务二次检查、会话隔离、API 和 Fake provider 离线测试。
 - 基础反馈：确认课程后记录最近偏好教师并用于后续 +15 排序；完整长期偏好模型尚未形成学习闭环。
 - 当前边界：SQLite 只保证单数据库文件内的排课写入串行化；多实例生产并发约束属于 PostgreSQL 迁移范围。
-- 未来增强：LLM 解析、FAISS、Redis、PostgreSQL 排他约束、复杂权限、支付、班课、教室容量。
+- 待真实验证：DeepSeek 线上调用、延迟、Token 成本和稳定性。
+- 未来增强：Redis、PostgreSQL 排他约束、复杂权限、支付、班课、教室容量。
 
-不得把可选依赖或 `DEV_SPEC` 目标自动表述为已落地。每次评价都给出一个可执行的下一步复习建议。
+不得把 Fake provider 测试写成真实模型验证，也不得把 `DEV_SPEC` 未来目标表述为已落地。每次评价都给出一个可执行的下一步复习建议。

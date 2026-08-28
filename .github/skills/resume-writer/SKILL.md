@@ -36,13 +36,13 @@ description: "Use when writing or revising Chinese or English resume project con
 **技术栈**：按目标岗位排序。
 ```
 
-每条 bullet 优先包含一个业务不变量和一个源码可解释点，例如：半开区间冲突、事务内二次检查、无模型降级、会话隔离、稳定教师排序或知识/实时数据边界。
+每条 bullet 优先包含一个业务不变量和一个源码可解释点，例如：确认门、4 步工具上限、半开区间冲突、事务内二次检查、会话隔离、FAISS 来源或知识/实时数据边界。
 
 ## Claim 规则
 
-- 可以写：确定性 Multi-Agent 路由、结构化字段收集、教师硬约束与软排序、指定教师替代、学生/教师冲突、SQLAlchemy Repository、`session_id + TTL`、关键词知识检索、FastAPI JSON API、离线测试。
-- 需要限定：这是类级协调和规则引擎，不是自治 Agent 网络；知识检索是 RAG-ready 基础，不是完整 LLM RAG。
-- 只能写为规划：FAISS/Embedding、LLM 解析、MCP、流式输出、Redis、复杂长期记忆、反思自学习、生产客户与业务提升。
+- 可以写：强制 DeepSeek 结构化路由与字段提取、LangChain 有界工具调用、FAISS + 本地 Embedding RAG、grounded 来源、服务端确认门、教师硬约束与软排序、学生/教师冲突、SQLAlchemy Repository、`session_id + TTL`、FastAPI JSON API、Fake provider 离线测试。
+- 需要限定：模型负责理解与工具选择，排课规则和写入仍由确定性服务控制；自动化测试未调用真实 DeepSeek。
+- 只能写为规划：MCP、流式输出、Redis、复杂长期记忆、反思自学习、PostgreSQL 排他约束、生产客户与业务提升。真实 DeepSeek 成功率、延迟和成本必须现场实测后再写。
 - 不得引用不存在路径或历史模块。任何量化数字都必须能由测试、命令输出或用户提供的数据解释。
 
 初稿后可附 3 个高概率追问，重点检查 Agent 边界、排课一致性和实现/规划区分。
