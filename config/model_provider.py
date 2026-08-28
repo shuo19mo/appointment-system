@@ -17,6 +17,7 @@ def create_deepseek_chat_model(settings: AgentSettings, *, temperature: float = 
         temperature=temperature,
         timeout=settings.timeout_seconds,
         max_retries=settings.max_retries,
+        extra_body={"thinking": {"type": "disabled"}},
     )
 
 

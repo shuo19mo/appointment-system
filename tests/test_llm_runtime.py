@@ -1,7 +1,13 @@
+import sys
+from types import SimpleNamespace
+
 import pytest
 
+from agents.llm.runtime import DeepSeekLLMRuntime
+from agents.task_classification_agent import TaskRoute
 from app import create_app
 from config.agent import AgentConfigurationError, AgentSettings
+from config.model_provider import create_deepseek_chat_model
 from tests.fakes import FakeEmbeddingProvider, FakeLLMRuntime
 
 
@@ -34,6 +40,39 @@ def test_agent_settings_use_current_deepseek_defaults(monkeypatch):
 
     assert settings.base_url == "https://api.deepseek.com"
     assert settings.model == "deepseek-v4-flash"
+
+
+def test_deepseek_model_disables_default_thinking_mode_for_agent_tools(monkeypatch):
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            self.extra_body = kwargs.get("extra_body")
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", SimpleNamespace(ChatOpenAI=FakeChatOpenAI))
+
+    model = create_deepseek_chat_model(AgentSettings(api_key="test-key"))
+
+    assert model.extra_body == {"thinking": {"type": "disabled"}}
+
+
+def test_structured_output_uses_deepseek_compatible_function_calling():
+    class StructuredRunnable:
+        def invoke(self, messages):
+            return {"category": "unsupported"}
+
+    class FunctionCallingOnlyModel:
+        def with_structured_output(self, schema, *, method):
+            if method != "function_calling":
+                raise RuntimeError("DeepSeek V4 does not support this structured-output method")
+            return StructuredRunnable()
+
+    runtime = DeepSeekLLMRuntime(
+        AgentSettings(api_key="test-key"),
+        chat_model=FunctionCallingOnlyModel(),
+    )
+
+    result = runtime.structured(system="route", user="weather", schema=TaskRoute)
+
+    assert result == TaskRoute(category="unsupported")
 
 
 def test_app_accepts_injected_fake_runtime(repository):

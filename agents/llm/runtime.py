@@ -44,7 +44,7 @@ class DeepSeekLLMRuntime:
 
     def structured(self, *, system: str, user: str, schema: type[BaseModel]) -> BaseModel:
         try:
-            model = self._chat_model.with_structured_output(schema)
+            model = self._chat_model.with_structured_output(schema, method="function_calling")
             result = model.invoke(self._messages(system, user))
             return result if isinstance(result, schema) else schema.model_validate(result)
         except Exception as exc:
