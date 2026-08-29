@@ -38,7 +38,7 @@ def test_consultant_uses_search_tool_and_returns_sources(repository):
     assert result["answer"] == "可提前24小时取消"
     assert result["sources"][0]["category"] == "policy"
     assert result["tool_trace"] == ["search_knowledge: success"]
-    assert runtime.tool_calls[0]["tools"] == ["search_knowledge"]
+    assert runtime.tool_calls[0]["tools"] == ["search_knowledge", "list_teachers_for_course"]
 
 
 def test_consultant_does_not_invent_sources_when_model_skips_tool(repository):
@@ -49,3 +49,24 @@ def test_consultant_does_not_invent_sources_when_model_skips_tool(repository):
 
     assert result["sources"] == []
     assert result["answer"] == "暂时没有检索到足够资料，请联系教务老师进一步确认。"
+
+
+def test_consultant_answers_teacher_list_from_live_business_data(repository, seeded):
+    class TeacherListRuntime:
+        model_name = "fake-deepseek"
+
+        def tool_loop(self, *, system, user, tools, max_steps=4):
+            teacher_tool = {tool.name: tool for tool in tools}.get("list_teachers_for_course")
+            if teacher_tool is None:
+                return ToolLoopResult(answer="没有教师数据", trace=())
+            data = teacher_tool.handler({"subject": "数学", "grade": "初二"})
+            names = "、".join(teacher["name"] for teacher in data["teachers"])
+            return ToolLoopResult(answer=f"初二数学教师有：{names}", trace=("list_teachers_for_course: success",))
+
+    agent = ConsultantAgent(repository, TeacherListRuntime(), FakeEmbeddingProvider())
+
+    result = agent.process("初二数学有哪些老师")
+
+    assert result["answer"] == "初二数学教师有：王老师、李老师"
+    assert result["sources"] == [{"id": seeded["course"].id, "category": "teacher_database"}]
+    assert result["tool_trace"] == ["list_teachers_for_course: success"]

@@ -1,6 +1,6 @@
 """Grounded DeepSeek consultation Agent backed by FAISS retrieval."""
 
-from agents.education_tools import SearchKnowledgeArgs
+from agents.education_tools import EducationTools, SearchKnowledgeArgs, TeacherCourseLookupArgs
 from agents.llm.runtime import LLMRuntime
 from agents.llm.tools import AgentTool
 from services.knowledge_service import VectorKnowledgeService
@@ -10,6 +10,7 @@ class ConsultantAgent:
     def __init__(self, repository, runtime: LLMRuntime, embedding_provider):
         self.runtime = runtime
         self.knowledge = VectorKnowledgeService(repository, embedding_provider)
+        self.education_tools = EducationTools(repository)
 
     @property
     def ready(self) -> bool:
@@ -29,11 +30,26 @@ class ConsultantAgent:
                 ]
             }
 
+        def list_teachers_for_course(args: TeacherCourseLookupArgs) -> dict:
+            data = self.education_tools.list_teachers_for_course(args)
+            if data["course"] is not None:
+                collected_sources.append({"id": data["course"]["id"], "category": "teacher_database"})
+            return data
+
         result = self.runtime.tool_loop(
-            system=("你是补习机构课程顾问 Agent。回答前必须调用 search_knowledge。"
+            system=("你是补习机构课程顾问 Agent。回答课程、校区和政策问题时调用 search_knowledge；"
+                    "回答具体课程的教师名单或师资问题时必须调用 list_teachers_for_course。"
                     "只能依据工具返回的资料回答；资料不足时明确说无法确认，不得编造价格、师资或政策。"),
             user=(question or "").strip(),
-            tools=[AgentTool("search_knowledge", "检索机构课程、教师、校区和政策资料。", SearchKnowledgeArgs, search_knowledge)],
+            tools=[
+                AgentTool("search_knowledge", "检索机构课程、校区和政策资料。", SearchKnowledgeArgs, search_knowledge),
+                AgentTool(
+                    "list_teachers_for_course",
+                    "按学科、年级和可选校区实时查询具有授课资质的教师名单。",
+                    TeacherCourseLookupArgs,
+                    list_teachers_for_course,
+                ),
+            ],
             max_steps=4,
         )
         seen = set()

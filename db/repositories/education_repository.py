@@ -222,6 +222,27 @@ class EducationRepository:
         with self.transaction() as session:
             return session.query(Teacher).filter(Teacher.is_active.is_(True)).order_by(Teacher.id).all()
 
+    def list_teachers_for_course(self, subject: str, grade: str, campus_name: str | None = None):
+        with self.transaction() as session:
+            query = (
+                session.query(Teacher)
+                .join(TeacherCourse, TeacherCourse.teacher_id == Teacher.id)
+                .join(Course, Course.id == TeacherCourse.course_id)
+                .filter(
+                    Teacher.is_active.is_(True),
+                    Course.is_active.is_(True),
+                    Course.subject == subject,
+                    Course.grade == grade,
+                )
+            )
+            if campus_name:
+                query = (
+                    query.join(TeacherCampus, TeacherCampus.teacher_id == Teacher.id)
+                    .join(Campus, Campus.id == TeacherCampus.campus_id)
+                    .filter(Campus.is_active.is_(True), Campus.name == campus_name)
+                )
+            return query.distinct().order_by(Teacher.id).all()
+
     def list_students(self):
         with self.transaction() as session:
             return session.query(Student).filter(Student.is_active.is_(True)).order_by(Student.id).all()

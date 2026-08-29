@@ -38,6 +38,17 @@ def test_lookup_tools_return_json_safe_records(repository, seeded):
     assert tools.lookup_course({"subject": "数学", "grade": "初二"})["course"]["name"] == "初二数学提升"
 
 
+def test_teacher_course_tool_lists_qualified_teachers(repository, seeded):
+    tools = EducationTools(repository)
+    teacher_tool = {tool.name: tool for tool in tools.registry()}.get("list_teachers_for_course")
+
+    assert teacher_tool is not None
+    result = teacher_tool.handler({"subject": "数学", "grade": "初二"})
+
+    assert result["course"]["name"] == "初二数学提升"
+    assert [teacher["name"] for teacher in result["teachers"]] == ["王老师", "李老师"]
+
+
 def test_model_cannot_create_booking_without_server_confirmation(repository, seeded):
     runtime = FakeLLMRuntime(
         structured={

@@ -17,6 +17,10 @@ class CourseLookupArgs(BaseModel):
     grade: str = Field(min_length=1)
 
 
+class TeacherCourseLookupArgs(CourseLookupArgs):
+    campus_name: str | None = None
+
+
 class MatchTeachersArgs(BaseModel):
     student_id: int | None = None
     course_id: int
@@ -70,6 +74,33 @@ class EducationTools:
             }
         }
 
+    def list_teachers_for_course(self, args) -> dict:
+        parsed = self._args(TeacherCourseLookupArgs, args)
+        course = self.repository.find_course(parsed.subject, parsed.grade)
+        teachers = self.repository.list_teachers_for_course(
+            parsed.subject,
+            parsed.grade,
+            parsed.campus_name,
+        )
+        return {
+            "course": None if course is None else {
+                "id": course.id,
+                "name": course.name,
+                "subject": course.subject,
+                "grade": course.grade,
+            },
+            "campus_name": parsed.campus_name,
+            "teachers": [
+                {
+                    "id": teacher.id,
+                    "name": teacher.name,
+                    "bio": teacher.bio,
+                    "specialties": teacher.specialties,
+                }
+                for teacher in teachers
+            ],
+        }
+
     def match_teachers(self, args) -> dict:
         parsed = self._args(MatchTeachersArgs, args)
         candidates = self.scheduling.match_teachers(**parsed.model_dump())
@@ -92,5 +123,11 @@ class EducationTools:
             AgentTool("lookup_campus", "按名称查询校区与地址。", NameLookupArgs, self.lookup_campus),
             AgentTool("lookup_course", "按学科和年级查询课程。", CourseLookupArgs, self.lookup_course),
             AgentTool("lookup_teacher", "按姓名查询教师简介与专长。", NameLookupArgs, self.lookup_teacher),
+            AgentTool(
+                "list_teachers_for_course",
+                "按学科、年级和可选校区实时查询具有授课资质的教师名单。",
+                TeacherCourseLookupArgs,
+                self.list_teachers_for_course,
+            ),
             AgentTool("match_teachers", "按真实课程、校区、时间和资质查询可选教师。", MatchTeachersArgs, self.match_teachers),
         ]
